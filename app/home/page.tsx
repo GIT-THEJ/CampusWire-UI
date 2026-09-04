@@ -1,6 +1,13 @@
 "use client";
+import {
+  getEvents,
+  getBookmarks,
+  addBookmark,
+  removeBookmark,
+} from "../../src/api";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell, Bookmark, CalendarDays, ChevronDown, ChevronRight, Code2, Dumbbell,
   GraduationCap, Home, LayoutGrid, MapPin, Menu, MessageCircle, Network,
@@ -8,20 +15,22 @@ import {
 } from "lucide-react";
 
 type Event = {
+  id: number;
+  ref_id: string | null;
   title: string;
-  college: string;
-  city: string;
   date: string;
+  venue: string;
   category: string;
-  tone: string;
+  description: string;
+  registration_link: string | null;
+  college_id: number;
+  posted_by: number | null;
+  created_at: string;
+  college_name: string;
+  college_code: string | null;
+  college_city: string | null;
 };
 
-const events: Event[] = [
-  { title: "Code Beyond Limits 2.0", college: "RV College of Engineering", city: "Bengaluru", date: "20–22 Sep 2026", category: "Hackathon", tone: "from-violet-600 to-indigo-500" },
-  { title: "TechNova 2026", college: "BMS College of Engineering", city: "Bengaluru", date: "25–27 Sep 2026", category: "Technical", tone: "from-indigo-600 to-sky-500" },
-  { title: "InnovateX", college: "NITK Surathkal", city: "Surathkal", date: "4–6 Oct 2026", category: "Workshop", tone: "from-fuchsia-600 to-violet-500" },
-  { title: "VTU Cultural Fest", college: "VTU Affiliated College", city: "Mysuru", date: "10–12 Oct 2026", category: "Cultural", tone: "from-purple-600 to-pink-500" }
-];
 
 const categories = [
   { name: "Hackathons", count: "125+ Events", icon: Code2 },
@@ -35,22 +44,74 @@ const categories = [
 export default function HomePage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
-  const [bookmarked, setBookmarked] = useState<string[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [bookmarked, setBookmarked] = useState<number[]>([]);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+
+        const [eventsData, bookmarksData] = await Promise.all([
+          getEvents(),
+          getBookmarks(),
+        ]);
+
+       setEvents(
+  Array.isArray(eventsData)
+    ? eventsData
+    : eventsData?.events || eventsData?.data || []
+);
+
+        const bookmarkIds = bookmarksData.map(
+          (bookmark: any) => bookmark.event_id
+        );
+
+        setBookmarked(bookmarkIds);
+      } catch (error) {
+        console.error("Failed to load homepage data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-      const text = `${event.title} ${event.college} ${event.city} ${event.category}`.toLowerCase();
+     const text =
+  `${event.title} ${event.college_name} ${event.college_city || ""} ${event.category}`
+    .toLowerCase();
       const matchesSearch = text.includes(search.toLowerCase());
-      const matchesCategory = category === "All" || event.category === category;
+
+      const matchesCategory =
+        category === "All" || event.category === category;
+
       return matchesSearch && matchesCategory;
     });
-  }, [search, category]);
+  }, [events, search, category]);
 
-  function toggleBookmark(title: string) {
-    setBookmarked((old) =>
-      old.includes(title) ? old.filter((item) => item !== title) : [...old, title]
-    );
+  async function toggleBookmark(eventId: number) {
+    const isBookmarked = bookmarked.includes(eventId);
+
+    try {
+      if (isBookmarked) {
+        await removeBookmark(eventId);
+
+        setBookmarked((old) =>
+          old.filter((id) => id !== eventId)
+        );
+      } else {
+        await addBookmark(eventId);
+
+        setBookmarked((old) => [...old, eventId]);
+      }
+    } catch (error) {
+      console.error("Bookmark action failed:", error);
+    }
   }
 
   return (
@@ -165,12 +226,12 @@ export default function HomePage() {
 
               <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {filteredEvents.map((event) => (
-                  <EventCard
-                    key={event.title}
-                    event={event}
-                    bookmarked={bookmarked.includes(event.title)}
-                    onBookmark={() => toggleBookmark(event.title)}
-                  />
+                 <EventCard
+  key={event.id}
+  event={event}
+  bookmarked={bookmarked.includes(event.id)}
+  onBookmark={() => toggleBookmark(event.id)}
+/>
                 ))}
               </div>
             </section>
@@ -328,20 +389,33 @@ function Logo() {
 }
 
 function Sidebar() {
-  const links = [
-    [Home, "Home"], [CalendarDays, "Events"], [GraduationCap, "Colleges"],
-    [Bell, "Notifications"], [Bookmark, "My Bookmarks"], [LayoutGrid, "My Registrations"]
-  ];
+  const router = useRouter();
+
+const links = [
+  [Home, "Home", "/home"],
+  [CalendarDays, "Events", "/events"],
+  [GraduationCap, "Colleges", "/colleges"],
+  [Bookmark, "My Bookmarks", "/bookmarks"],
+  [LayoutGrid, "My Registrations", "#"],
+];
 
   return (
     <nav className="mt-8 space-y-1">
-      {links.map(([Icon, label], index) => {
+      {links.map(([Icon, label, path], index) => {
         const ItemIcon = Icon;
+
         return (
           <button
             key={label}
+            onClick={() => {
+  if (path !== "#") {
+    router.push(path);
+  }
+}}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${
-              index === 0 ? "bg-[#EEEAFE] text-brand" : "text-slate-600 hover:bg-slate-50"
+              index === 0
+                ? "bg-[#EEEAFE] text-brand"
+                : "text-slate-600 hover:bg-slate-50"
             }`}
           >
             <ItemIcon size={18} />
@@ -352,7 +426,6 @@ function Sidebar() {
     </nav>
   );
 }
-
 function StatCard({ icon, number, label }: { icon: React.ReactNode; number: string; label: string }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-black/5 bg-white p-4 shadow-sm">
@@ -376,16 +449,38 @@ function EventCard({
 }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm hover:-translate-y-1 hover:shadow-lg">
-      <div className={`relative h-40 bg-gradient-to-br ${event.tone}`}>
+      <div
+  className={`relative h-40 bg-gradient-to-br ${
+    event.category === "Workshop"
+      ? "from-fuchsia-600 to-violet-500"
+      : event.category === "Technical"
+      ? "from-indigo-600 to-sky-500"
+      : event.category === "Hackathon"
+      ? "from-violet-600 to-indigo-500"
+      : event.category === "Cultural"
+      ? "from-purple-600 to-pink-500"
+      : event.category === "Sports"
+      ? "from-emerald-600 to-teal-500"
+      : "from-slate-600 to-indigo-500"
+  }`}
+>
         <span className="absolute left-4 top-4 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold text-white backdrop-blur">
           {event.category}
         </span>
-        <button
-          onClick={onBookmark}
-          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white"
-        >
-          <Bookmark size={17} fill={bookmarked ? "currentColor" : "none"} />
-        </button>
+       <button
+  onClick={onBookmark}
+  aria-label={bookmarked ? "Remove bookmark" : "Bookmark event"}
+  className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full transition ${
+    bookmarked
+      ? "bg-white text-brand"
+      : "bg-white/15 text-white hover:bg-white/25"
+  }`}
+>
+  <Bookmark
+    size={17}
+    fill={bookmarked ? "currentColor" : "none"}
+  />
+</button>
         <div className="absolute bottom-4 left-4 grid h-11 w-11 place-items-center rounded-xl bg-white/15 text-white backdrop-blur">
           <Trophy size={20} />
         </div>
@@ -393,11 +488,13 @@ function EventCard({
 
       <div className="p-4">
         <h3 className="truncate text-sm font-bold">{event.title}</h3>
-        <p className="mt-1 truncate text-xs text-muted">{event.college}</p>
+        <p className="mt-1 truncate text-xs text-muted">
+  {event.college_name}
+</p>
         <div className="mt-4 flex items-end justify-between gap-2">
           <div>
             <p className="flex items-center gap-1 text-[11px] font-medium"><CalendarDays size={13} />{event.date}</p>
-            <p className="mt-1 flex items-center gap-1 text-[11px] text-muted"><MapPin size={13} />{event.city}</p>
+            <p className="mt-1 flex items-center gap-1 text-[11px] text-muted"><MapPin size={13} />{event.college_city}</p>
           </div>
           <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">Open</span>
         </div>
