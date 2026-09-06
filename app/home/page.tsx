@@ -6,12 +6,32 @@ import {
   removeBookmark,
 } from "../../src/api";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bell, Bookmark, CalendarDays, ChevronDown, ChevronRight, Code2, Dumbbell,
-  GraduationCap, Home, LayoutGrid, MapPin, Menu, MessageCircle, Network,
-  Search, Sparkles, Trophy, Users, Wrench, X
+  Bell,
+  Bookmark,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  Code2,
+  Dumbbell,
+  GraduationCap,
+  Home,
+  LayoutGrid,
+  MapPin,
+  Menu,
+  MessageCircle,
+  Network,
+  Search,
+  Sparkles,
+  Trophy,
+  Users,
+  Wrench,
+  X,
+  User,
+  Settings,
+  LogOut,
 } from "lucide-react";
 
 type Event = {
@@ -42,42 +62,110 @@ const categories = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  const [user, setUser] = useState<{
+    id: number;
+    full_name: string;
+    email: string;
+    role: string;
+    college_id: number | null;
+    branch: string | null;
+    year: string | null;
+    club_name: string | null;
+    designation: string | null;
+    is_verified: boolean;
+    created_at: string;
+  } | null>(null);
+
   const [category, setCategory] = useState("All");
   const [events, setEvents] = useState<Event[]>([]);
   const [bookmarked, setBookmarked] = useState<number[]>([]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [loading, setLoading] = useState(true);
+  async function loadCurrentUser() {
+    try {
+      const token =
+        localStorage.getItem("campuswire-token") ||
+        sessionStorage.getItem("campuswire-token");
+
+      if (!token) {
+        return;
+      }
+
+      const response = await fetch(
+        "https://circular-backend-t3mk.onrender.com/auth/me",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch current user");
+      }
+
+      const data = await response.json();
+
+      setUser(data.user);
+    } catch (error) {
+      console.error("Failed to load user:", error);
+    }
+  }
+
+
+  async function loadData() {
+    try {
+      setLoading(true);
+
+      const [eventsData, bookmarksData] = await Promise.all([
+        getEvents(),
+        getBookmarks(),
+      ]);
+
+      setEvents(
+        Array.isArray(eventsData)
+          ? eventsData
+          : eventsData?.events || eventsData?.data || []
+      );
+
+      const bookmarkIds = bookmarksData.map(
+        (bookmark: any) => bookmark.event_id
+      );
+
+      setBookmarked(bookmarkIds);
+    } catch (error) {
+      console.error("Failed to load homepage data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
+    loadData();
+    loadCurrentUser();
+  }, []);
 
-        const [eventsData, bookmarksData] = await Promise.all([
-          getEvents(),
-          getBookmarks(),
-        ]);
-
-       setEvents(
-  Array.isArray(eventsData)
-    ? eventsData
-    : eventsData?.events || eventsData?.data || []
-);
-
-        const bookmarkIds = bookmarksData.map(
-          (bookmark: any) => bookmark.event_id
-        );
-
-        setBookmarked(bookmarkIds);
-      } catch (error) {
-        console.error("Failed to load homepage data:", error);
-      } finally {
-        setLoading(false);
+    useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setProfileMenuOpen(false);
       }
     }
 
-    loadData();
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const filteredEvents = useMemo(() => {
@@ -152,19 +240,107 @@ export default function HomePage() {
                 />
               </div>
 
-              <button className="relative rounded-xl p-2.5 hover:bg-slate-100">
-                <Bell size={19} />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand" />
-              </button>
+              <button
+  onClick={() => router.push("/notifications")}
+  aria-label="Notifications"
+  className="relative rounded-xl p-2.5 hover:bg-slate-100"
+>
+  <Bell size={19} />
 
-              <div className="hidden items-center gap-2 sm:flex">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-[#E8E2FF] text-sm font-bold text-brand">T</div>
-                <div>
-                  <p className="text-sm font-semibold">Thejaswi</p>
-                  <p className="text-[11px] text-muted">CIT, Coorg</p>
-                </div>
-                <ChevronDown size={15} className="text-muted" />
-              </div>
+  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand" />
+</button>
+
+<div ref={profileMenuRef} className="relative">
+  <button
+    onClick={() => setProfileMenuOpen((old) => !old)}
+    aria-label="Open profile menu"
+    className="grid h-10 w-10 place-items-center rounded-full bg-[#E8E2FF] text-sm font-bold text-brand transition hover:bg-[#DDD5FF]"
+  >
+    {user?.full_name
+      ? user.full_name.charAt(0).toUpperCase()
+      : "U"}
+  </button>
+
+  {profileMenuOpen && (
+    <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-xl">
+
+      {/* User information */}
+      <div className="border-b border-black/5 px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#E8E2FF] text-base font-bold text-brand">
+            {user?.full_name
+              ? user.full_name.charAt(0).toUpperCase()
+              : "U"}
+          </div>
+
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold">
+              {user?.full_name || ""}
+            </p>
+
+            <p className="truncate text-xs text-muted">
+              {user?.email || ""}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Menu */}
+      <div className="p-2">
+
+        <button
+          onClick={() => {
+            setProfileMenuOpen(false);
+            router.push("/profile");
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-[#F5F2FF]"
+        >
+          <User size={17} className="text-brand" />
+          My Profile
+        </button>
+
+        <button
+          onClick={() => {
+            setProfileMenuOpen(false);
+            router.push("/settings");
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-[#F5F2FF]"
+        >
+          <Settings size={17} className="text-brand" />
+          Settings
+        </button>
+
+        <button
+          onClick={() => {
+            setProfileMenuOpen(false);
+            router.push("/notifications");
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-[#F5F2FF]"
+        >
+          <Bell size={17} className="text-brand" />
+          Notifications
+        </button>
+
+      </div>
+
+      {/* Logout */}
+      <div className="border-t border-black/5 p-2">
+        <button
+          onClick={() => {
+            localStorage.removeItem("campuswire-token");
+            sessionStorage.removeItem("campuswire-token");
+            router.push("/login");
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
+        >
+          <LogOut size={17} />
+          Log Out
+        </button>
+      </div>
+
+    </div>
+  )}
+</div>
             </div>
           </header>
 
@@ -346,20 +522,6 @@ export default function HomePage() {
                   );
                 })}
               </div>
-            </section>
-
-            <section className="mt-10 rounded-3xl bg-[#EAE5FF] p-7 sm:p-9">
-              <p className="text-xs font-bold uppercase tracking-[.18em] text-brand">For colleges</p>
-              <h2 className="mt-2 text-2xl font-bold">Are you a VTU College?</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Join CampusWire and share your events with students across the VTU college network.
-              </p>
-              <button
-                onClick={() => alert("College registration will be added later.")}
-                className="mt-5 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white hover:bg-brand-dark"
-              >
-                Register Your College
-              </button>
             </section>
 
             <footer className="mt-12 border-t border-black/5 py-8 text-xs text-muted">

@@ -43,6 +43,55 @@ export async function loginUser(email: string, password: string) {
 
   return data;
 }
+
+export async function registerAdmin(data: {
+  full_name: string;
+  email: string;
+  password: string;
+  college_id: number;
+  designation: string;
+}) {
+  const response = await fetch(`${BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      full_name: data.full_name,
+      email: data.email,
+      password: data.password,
+      role: "admin",
+      college_id: data.college_id,
+      designation: data.designation,
+    }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || "Admin registration failed");
+  }
+
+  return result;
+}
+
+// ============================================================
+// CURRENT USER
+// ============================================================
+
+export async function getCurrentUser() {
+  const response = await fetch(`${BASE_URL}/auth/me`, {
+    headers: getAuthHeaders(),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to fetch account details");
+  }
+
+  return data.user;
+}
 export async function signupStudent(
   username: string,
   email: string,

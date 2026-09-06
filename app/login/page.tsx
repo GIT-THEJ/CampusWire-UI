@@ -43,7 +43,18 @@ try {
     sessionStorage.setItem("campuswire-user", JSON.stringify(data.user));
   }
 
+  if (data.user.role === "admin") {
+  if (!data.user.is_verified) {
+    setError(
+      "Your college admin account is awaiting verification."
+    );
+    return;
+  }
+
+  router.push("/admin");
+} else {
   router.push("/home");
+}
 } catch (error) {
   if (error instanceof Error) {
     setError(error.message);
@@ -202,7 +213,7 @@ try {
 
             <button
               type="button"
-              onClick={() => alert("College registration will be added later.")}
+              onClick={() => router.push("/admin/register")}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-brand/15 bg-[#F7F5FF] px-4 py-3 text-sm font-semibold text-brand"
             >
               <CheckCircle2 size={17} />
