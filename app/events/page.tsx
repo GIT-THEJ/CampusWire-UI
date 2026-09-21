@@ -213,6 +213,8 @@ export default function EventsPage() {
 }
 
 function EventCard({ event }: { event: Event }) {
+  const router = useRouter();
+
   const eventDate = new Date(event.date);
 
   const formattedDate = eventDate.toLocaleDateString("en-IN", {
@@ -221,26 +223,60 @@ function EventCard({ event }: { event: Event }) {
     year: "numeric",
   });
 
-  return (
-    <div className="group overflow-hidden rounded-3xl border border-black/5 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+  function openEvent() {
+    router.push(`/events/${event.id}`);
+  }
 
-      {/* Event top section */}
-      <div className="relative h-36 bg-[#18142D] p-6">
-        <div className="absolute right-5 top-5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
+  return (
+    <article
+      onClick={openEvent}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openEvent();
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      className="group cursor-pointer overflow-hidden rounded-3xl border border-black/[0.06] bg-white shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-brand/20 hover:shadow-[0_20px_50px_rgba(91,63,211,0.14)] focus:outline-none focus:ring-4 focus:ring-brand/10"
+    >
+      {/* Visual header */}
+      <div className="relative h-40 overflow-hidden bg-[#171329]">
+        {/* Glow effects */}
+        <div className="absolute -right-10 -top-16 h-40 w-40 rounded-full bg-brand/40 blur-3xl transition duration-500 group-hover:bg-brand/60" />
+
+        <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-violet-400/20 blur-3xl" />
+
+        {/* Grid */}
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+
+        {/* Category */}
+        <span className="absolute left-5 top-5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md">
           {event.category}
+        </span>
+
+        {/* Event icon */}
+        <div className="absolute bottom-5 left-5 grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/10 text-[#C9C0FF] backdrop-blur-md">
+          <CalendarDays size={23} />
         </div>
 
-        <div className="flex h-full items-end">
-          <CalendarDays
-            size={34}
-            className="text-[#BDB0FF]"
-          />
+        {/* Open indicator */}
+        <div className="absolute bottom-5 right-5 flex items-center gap-1.5 text-[11px] font-semibold text-white/70">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.8)]" />
+          Open
         </div>
       </div>
 
       {/* Content */}
       <div className="p-6">
-        <h2 className="text-lg font-bold leading-7 text-ink">
+        <h2 className="line-clamp-2 text-lg font-bold leading-7 text-ink transition group-hover:text-brand">
           {event.title}
         </h2>
 
@@ -250,41 +286,52 @@ function EventCard({ event }: { event: Event }) {
           </p>
         )}
 
-        {/* Date */}
-        <div className="mt-5 flex items-center gap-2 text-sm text-slate-600">
-          <CalendarDays size={16} />
-          {formattedDate}
-        </div>
+        {/* Event information */}
+        <div className="mt-5 space-y-3">
+          <div className="flex items-center gap-3 text-sm text-slate-600">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#F1EEFF] text-brand">
+              <CalendarDays size={15} />
+            </div>
+            <span>{formattedDate}</span>
+          </div>
 
-        {/* Venue */}
-        <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-          <MapPin size={16} />
-          {event.venue}
-        </div>
+          <div className="flex items-center gap-3 text-sm text-slate-600">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#F1EEFF] text-brand">
+              <MapPin size={15} />
+            </div>
 
-        {/* College */}
-        <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-          <GraduationCap size={16} />
-          <span className="line-clamp-1">
-            {event.college_name}
-          </span>
+            <span className="line-clamp-1">{event.venue}</span>
+          </div>
+
+          <div className="flex items-center gap-3 text-sm text-slate-600">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#F1EEFF] text-brand">
+              <GraduationCap size={15} />
+            </div>
+
+            <span className="line-clamp-1">{event.college_name}</span>
+          </div>
         </div>
 
         {/* Distance */}
         {event.distance_km !== undefined &&
           event.distance_km !== null && (
-            <p className="mt-3 text-xs font-semibold text-brand">
+            <p className="mt-4 text-xs font-semibold text-brand">
               {event.distance_km} km away
             </p>
           )}
 
         {/* Footer */}
-        <div className="mt-5 border-t border-black/5 pt-4">
-          <span className="text-xs font-semibold text-brand">
-            Event ID: {event.ref_id}
+        <div className="mt-6 flex items-center justify-between border-t border-black/[0.06] pt-4">
+          <span className="text-[11px] font-semibold text-slate-400">
+            {event.ref_id}
+          </span>
+
+          <span className="flex items-center gap-1 text-xs font-bold text-brand transition group-hover:gap-2">
+            View event
+            <span>→</span>
           </span>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
